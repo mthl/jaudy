@@ -1,14 +1,17 @@
-(ns jaudy.core-test
+(ns jaudy.route-test
   (:require
    [clojure.test :refer [deftest testing is are]]
-   [jaudy.core :as r #?@(:cljs [:refer [Router]])]
-   [jaudy.impl :as impl])
+   [jaudy.route :as r #?@(:cljs [:refer [Router]])]
+   [jaudy.route.impl :as impl])
   #?(:clj
      (:import
-      [jaudy.core Router]
+      [jaudy.route Router]
       [clojure.lang ExceptionInfo])))
 
-(deftest jaudy-test
+(deftest router-test
+  ;; (testing "routers must have a default route"
+  ;;   (are [router]
+  ;;       (is (thrown? ....))))
 
   (testing "routers handling wildcard paths"
     (are [router]
@@ -130,13 +133,13 @@
             (testing "unclosed brackets"
               (is (thrown-with-msg?
                    ExceptionInfo
-                   #":jaudy.trie/unclosed-brackets"
+                   #":jaudy.route.trie/unclosed-brackets"
                    (r/router [{:route/path "/kikka/{kukka"}]))))
 
             (testing "multiple terminators"
               (is (thrown-with-msg?
                    ExceptionInfo
-                   #":jaudy.trie/multiple-terminators"
+                   #":jaudy.route.trie/multiple-terminators"
                    (r/router [{:route/path "/{kukka}.json"}
                               {:route/path "/{kukka}-json"}]))))))
 

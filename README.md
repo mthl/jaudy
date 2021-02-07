@@ -7,7 +7,7 @@ The design is inspired by [Pedestal](http://pedestal.io) router and the implemen
 ## Usage
 
 ```
-(require '[jaudy.core :as r])
+(require '[jaudy.route :as r])
 
 (def routes
  [{:route/path "/foo"

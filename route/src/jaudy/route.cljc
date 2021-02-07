@@ -1,8 +1,8 @@
-(ns jaudy.core
+(ns jaudy.route
   (:require
    [jaudy.exception :as exception]
-   [jaudy.impl :as impl]
-   [jaudy.trie :as trie]))
+   [jaudy.route.impl :as impl]
+   [jaudy.route.trie :as trie]))
 
 (defprotocol Router
   "A router provides a bidirectional mapping between a collection of

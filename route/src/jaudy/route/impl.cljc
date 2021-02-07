@@ -1,10 +1,10 @@
-(ns ^:no-doc jaudy.impl
-  #?(:cljs (:require-macros [jaudy.impl]))
+(ns ^:no-doc jaudy.route.impl
+  #?(:cljs (:require-macros [jaudy.route.impl]))
   (:require
    [clojure.set :as set]
    [clojure.string :as str]
    [jaudy.exception :as ex]
-   [jaudy.trie :as trie])
+   [jaudy.route.trie :as trie])
   #?(:clj
      (:import
       [java.util HashMap Map]

@@ -1,11 +1,11 @@
-(ns jaudy.trie
+(ns jaudy.route.trie
   (:refer-clojure :exclude [compile])
   (:require
    [clojure.string :as str]
    [jaudy.exception :as ex])
   #?(:clj
      (:import
-      [jaudy Trie Trie$Match Trie$Matcher]
+      [jaudy.route Trie Trie$Match Trie$Matcher]
       [java.net URLDecoder])))
 
 (defn ^:no-doc into-set [x]
