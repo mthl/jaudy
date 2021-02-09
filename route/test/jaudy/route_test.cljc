@@ -32,13 +32,13 @@
 
               (is (thrown-with-msg?
                    ExceptionInfo
-                   #"missing-route"
+                   #"missing route identifier"
                    (r/path-for r "ILLEGAL"))
                   "invalid route identifier bails out")
 
               (is (thrown-with-msg?
                    ExceptionInfo
-                   #"^missing values for route /api/ipa/\{size\} -> \#\{:size\}$"
+                   #"missing variables assignment"
                    (r/path-for r ::beer))
                   "missing parameters bails out")))
 
@@ -133,13 +133,13 @@
             (testing "unclosed brackets"
               (is (thrown-with-msg?
                    ExceptionInfo
-                   #":jaudy.route.trie/unclosed-brackets"
+                   #"unclosed bracket"
                    (r/router [{:route/path "/kikka/{kukka"}]))))
 
             (testing "multiple terminators"
               (is (thrown-with-msg?
                    ExceptionInfo
-                   #":jaudy.route.trie/multiple-terminators"
+                   #"multiple terminators"
                    (r/router [{:route/path "/{kukka}.json"}
                               {:route/path "/{kukka}-json"}]))))))
 
@@ -177,7 +177,7 @@
               "ignore extra path params")
           (is (thrown-with-msg?
                ExceptionInfo
-               #"missing-route"
+               #"missing route identifier"
                (r/path-for r "ILLEGAL"))))
 
       r/lookup-router
@@ -189,7 +189,7 @@
     (testing "can't be created with wildcard routes"
       (is (thrown-with-msg?
            ExceptionInfo
-           #"can't create :lookup-router with wildcard routes"
+           #"can't create a lookup router with wildcard routes"
            (r/lookup-router
             [{:route/path"/api/{version}/ping"}])))))
 
@@ -266,7 +266,7 @@
       (testing "throws by default"
         (is (thrown-with-msg?
              ExceptionInfo
-             #"Router contains conflicting route paths"
+             #"Conflicting paths"
              (r/router
               [{:route/path "/a"}
                {:route/path "/a"}]))))
@@ -296,7 +296,7 @@
           (are [paths]
               (is (thrown-with-msg?
                    ExceptionInfo
-                   #"Router contains conflicting route paths"
+                   #"Conflicting paths"
                    (r/router paths)))
             [{:route/path "/a"}
              {:route/path "/a" :route/conflict true}]
@@ -307,7 +307,7 @@
     (testing "router with conflicting routes always throws"
       (is (thrown-with-msg?
            ExceptionInfo
-           #"Router contains conflicting route names"
+           #"Duplicated route identifier"
            (r/router
             [{:route/path "/1" :route/id ::1}
              {:route/path "/2" :route/id ::1}]))))))

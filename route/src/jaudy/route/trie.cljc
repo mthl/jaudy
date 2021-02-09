@@ -1,8 +1,7 @@
 (ns jaudy.route.trie
   (:refer-clojure :exclude [compile])
   (:require
-   [clojure.string :as str]
-   [jaudy.exception :as ex])
+   [clojure.string :as str])
   #?(:clj
      (:import
       [jaudy.route Trie Trie$Match Trie$Matcher]
@@ -70,7 +69,7 @@
         (let [c (get s to)]
           (if (= \{ c)
             (let [^long to' (or (str/index-of s "}" to)
-                                (ex/fail! ::unclosed-brackets {:path s}))]
+                                (throw (ex-info "unclosed bracket" {:path s})))]
               (if (= \/ (get s (inc to)))
                 (recur (concat ss [(str (first (-static from to)) "/")]  (-catch-all (inc to) to'))
                        (long (inc to'))
@@ -153,7 +152,8 @@
                 (instance? Wild path)
                 (let [next (first ps)]
                   (if (or (instance? Wild next) (instance? CatchAll next))
-                    (ex/fail! ::following-parameters {:path fp, :parameters (map :value [path next])})
+                    (throw (ex-info "Following parameters"
+                                    {:path fp :parameters (map :value [path next])}))
                     (update-in node [:wilds path] (fn [n] (-insert (or n (-node {})) ps fp params data)))))
 
                 (instance? CatchAll path)
@@ -349,7 +349,8 @@
                           (let [pv (:value p)
                                 ends (ends c)]
                             (if (next ends)
-                              (ex/fail! ::multiple-terminators {:terminators ends, :path (join-path (conj cp p))})
+                              (throw (ex-info "multiple terminators"
+                                              {:terminators ends :path (join-path (conj cp p))}))
                               (wild-matcher compiler pv (ffirst ends) (compile c compiler (conj cp pv)))))))
                       (into (for [[p c] catch-all] (catch-all-matcher compiler (:value p) params (:data c)))))]
      (cond

@@ -3,7 +3,6 @@
   (:require
    [clojure.set :as set]
    [clojure.string :as str]
-   [jaudy.exception :as ex]
    [jaudy.route.trie :as trie])
   #?(:clj
      (:import
@@ -77,7 +76,7 @@
 (defn no-id-conflicts
   [routes]
   (when-let [name-conflicting (name-conflicting-routes routes)]
-    (ex/fail! :name-conflicts name-conflicting)))
+    (throw (ex-info "Duplicated route identifier" name-conflicting))))
 
 (defn path-for [route values]
   (if (-> route :variables not-empty)
@@ -103,9 +102,11 @@
   (when-not (every? #(contains? values %) variables)
     (let [defined (-> values keys set)
           missing (set/difference variables defined)]
-      (ex/fail!
-        (str "missing values for route " template " -> " missing)
-        {:values values, :variables variables}))))
+      (throw (ex-info "missing variables assignment to expand route template"
+                      {:template template
+                       :variables variables
+                       :values defined
+                       :missing missing})))))
 
 (defn fast-assoc
   #?@(:clj  [[^clojure.lang.Associative a k v] (.assoc a k v)]
@@ -283,8 +284,8 @@
   ([route-url id]
    (if route-url
      (route-url nil)
-     (ex/fail! :missing-route {:data id})))
+     (throw (ex-info "missing route identifier" {:id id}))))
   ([route-url id params]
    (if route-url
      (route-url (path-params params))
-     (ex/fail! :missing-route {:data id}))))
+     (throw (ex-info "missing route identifier" {:id id})))))

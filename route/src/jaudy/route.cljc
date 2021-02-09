@@ -1,6 +1,5 @@
 (ns jaudy.route
   (:require
-   [jaudy.exception :as exception]
    [jaudy.route.impl :as impl]
    [jaudy.route.trie :as trie]))
 
@@ -57,78 +56,69 @@
   This limitation on the path form provides performance benefits
   meaning that matching has a computational complexity of O(1)."
   [routes]
-  (try
-    (impl/no-id-conflicts routes)
-    (when-let [conflicts (impl/path-conflicting-routes routes)]
-      (exception/fail! :path-conflicts conflicts))
-    (when-let [wilds (seq (filter impl/wild-route? routes))]
-      (exception/fail!
-       (str "can't create :lookup-router with wildcard routes: " wilds)
-       {:wilds wilds :routes routes}))
-    (let [{:keys [index match]} (impl/lookup-router routes)]
-      ^{:type ::router}
-      (reify Router
-        (match [_ path]
-          (impl/fast-get match path))
+  (impl/no-id-conflicts routes)
+  (when-let [conflicts (impl/path-conflicting-routes routes)]
+    (throw (ex-info "Conflicting paths" conflicts)))
+  (when-let [wilds (seq (filter impl/wild-route? routes))]
+    (throw 
+     (ex-info "can't create a lookup router with wildcard routes"
+              {:wilds wilds :routes routes})))
+  (let [{:keys [index match]} (impl/lookup-router routes)]
+    ^{:type ::router}
+    (reify Router
+      (match [_ path]
+        (impl/fast-get match path))
 
-        (path-for [_ id]
-          (impl/expand-or-fail! (impl/fast-get index id) id))
+      (path-for [_ id]
+        (impl/expand-or-fail! (impl/fast-get index id) id))
 
-        (path-for [_ id params]
-          (impl/expand-or-fail! (impl/fast-get index id) id params))))
-    (catch #?(:clj Exception, :cljs js/Error) e
-      (throw (exception/exception e)))))
+      (path-for [_ id params]
+        (impl/expand-or-fail! (impl/fast-get index id) id params)))))
 
 (defn trie-router
   "Creates a special prefix-tree router from resolved routes."
   [routes]
-  (try
-    (impl/no-id-conflicts routes)
-    (when-let [conflicts (impl/path-conflicting-routes routes)]
-      (exception/fail! :path-conflicts conflicts))
-    (let [{:keys [index match]} (impl/trie-router routes)]
-      ^{:type ::router}
-      (reify
-        Router
-        (match [_ url]
-          (match url))
+  (impl/no-id-conflicts routes)
+  (when-let [conflicts (impl/path-conflicting-routes routes)]
+    (throw (ex-info "Conflicting paths" conflicts)))
+  (let [{:keys [index match]} (impl/trie-router routes)]
+    ^{:type ::router}
+    (reify
+      Router
+      (match [_ url]
+        (match url))
 
-        (path-for [_ id]
-          (impl/expand-or-fail! (impl/fast-get index id) id))
+      (path-for [_ id]
+        (impl/expand-or-fail! (impl/fast-get index id) id))
 
-        (path-for [_ id values]
-          (impl/expand-or-fail! (impl/fast-get index id) id values))))
-    (catch #?(:clj Exception, :cljs js/Error) e
-      (throw (exception/exception e)))))
+      (path-for [_ id values]
+        (impl/expand-or-fail! (impl/fast-get index id) id values)))))
 
 (defn mixed-router
   "Create a [[Router]] combining a [[lookup-router]] for static routes
   and a [[trie-router]] for wildcard routes."
   [routes]
-  (try
-    (impl/no-id-conflicts routes)
-    (when-let [conflicts (impl/path-conflicting-routes routes)]
-      (exception/fail! :path-conflicts conflicts))
-    (let [{wilds true, statics false} (group-by impl/wild-route? routes)
-          {trie-idx :index trie-matcher :match} (impl/trie-router wilds)
-          {static-idx :index static-matcher :match} (impl/lookup-router statics)]
-      ^{:type ::router}
-      (reify Router
-        (match [_ url]
-          (or (impl/fast-get static-matcher url)
-              (trie-matcher url)))
+  (impl/no-id-conflicts routes)
+  (when-let [conflicts (impl/path-conflicting-routes routes)]
+    (throw (ex-info "Conflicting paths" conflicts)))
+  (let [{wilds true, statics false} (group-by impl/wild-route? routes)
+        {trie-idx :index trie-matcher :match} (impl/trie-router wilds)
+        {static-idx :index static-matcher :match} (impl/lookup-router statics)]
+    ^{:type ::router}
+    (reify Router
+      (match [_ url]
+        (or (impl/fast-get static-matcher url)
+            (trie-matcher url)))
 
-        (path-for [_ id]
-          (let [route-url (or (impl/fast-get static-idx id)
-                              (impl/fast-get trie-idx id))]
-            (impl/expand-or-fail! route-url id)))
+      (path-for [_ id]
+        (let [route-url (or (impl/fast-get static-idx id)
+                            (impl/fast-get trie-idx id))]
+          (impl/expand-or-fail! route-url id)))
 
-        (path-for [_ id values]
-          (let [route-url (or (impl/fast-get static-idx id)
-                              (impl/fast-get trie-idx id))]
-            (impl/expand-or-fail! route-url id values)))))
-    (catch #?(:clj Exception, :cljs js/Error) e
-      (throw (exception/exception e)))))
+      (path-for [_ id values]
+        (let [route-url (or (impl/fast-get static-idx id)
+                            (impl/fast-get trie-idx id))]
+          (impl/expand-or-fail! route-url id values))))))
 
 ;;; Routers handling ambiguous routes.
 
@@ -147,57 +137,51 @@
   in most cases because route order introduce complexity and can
   easily lead to unexpected results."
   [routes]
-  (try
-    (impl/no-id-conflicts routes)
-    (let [{:keys [index match]} (impl/linear-router routes)]
-      ^{:type ::router}
-      (reify
-        Router
-        (match [_ url]
-          (match url))
+  (impl/no-id-conflicts routes)
+  (let [{:keys [index match]} (impl/linear-router routes)]
+    ^{:type ::router}
+    (reify
+      Router
+      (match [_ url]
+        (match url))
 
-        (path-for [_ id]
-          (impl/expand-or-fail! (impl/fast-get index id) id))
+      (path-for [_ id]
+        (impl/expand-or-fail! (impl/fast-get index id) id))
 
-        (path-for [_ id values]
-          (impl/expand-or-fail! (impl/fast-get index id) id values))))
-    (catch #?(:clj Exception, :cljs js/Error) e
-      (throw (exception/exception e)))))
+      (path-for [_ id values]
+        (impl/expand-or-fail! (impl/fast-get index id) id values)))))
 
 (defn quarantine-router
   "Create a “quarantine” [[Router]] combining a [[mixed-router]] for
   non-conflicting routes and a [[linear-router]] for conflicting
   routes."
   [routes]
-  (try
-    (impl/no-id-conflicts routes)
-    (let [conflicting-paths (impl/conflicting-paths (impl/path-conflicting-routes routes))
-          conflicting? #(contains? conflicting-paths (first %))
-          {conflicting true, non-conflicting false} (group-by conflicting? routes)
-          {linear-i :index linear-m :match} (impl/linear-router conflicting)
-          {wilds true, statics false} (group-by impl/wild-route? non-conflicting)
-          {static-i :index static-m :match} (impl/lookup-router statics)
-          {trie-i :index trie-m :match} (impl/trie-router wilds)]
-      ^{:type ::router}
-      (reify Router
-        (match [_ url]
-          (or (impl/fast-get static-m url)
-              (trie-m url)
-              (linear-m url)))
+  (impl/no-id-conflicts routes)
+  (let [conflicting-paths (impl/conflicting-paths (impl/path-conflicting-routes routes))
+        conflicting? #(contains? conflicting-paths (first %))
+        {conflicting true, non-conflicting false} (group-by conflicting? routes)
+        {linear-i :index linear-m :match} (impl/linear-router conflicting)
+        {wilds true, statics false} (group-by impl/wild-route? non-conflicting)
+        {static-i :index static-m :match} (impl/lookup-router statics)
+        {trie-i :index trie-m :match} (impl/trie-router wilds)]
+    ^{:type ::router}
+    (reify Router
+      (match [_ url]
+        (or (impl/fast-get static-m url)
+            (trie-m url)
+            (linear-m url)))
 
-        (path-for [_ id]
-          (let [route-url (or (impl/fast-get static-i id)
-                              (impl/fast-get trie-i id)
-                              (impl/fast-get linear-i id))]
-            (impl/expand-or-fail! route-url id)))
+      (path-for [_ id]
+        (let [route-url (or (impl/fast-get static-i id)
+                            (impl/fast-get trie-i id)
+                            (impl/fast-get linear-i id))]
+          (impl/expand-or-fail! route-url id)))
 
-        (path-for [_ id values]
-          (let [route-url (or (impl/fast-get static-i id)
-                              (impl/fast-get trie-i id)
-                              (impl/fast-get linear-i id))]
-            (impl/expand-or-fail! route-url id values)))))
-    (catch #?(:clj Exception, :cljs js/Error) e
-      (throw (exception/exception e)))))
+      (path-for [_ id values]
+        (let [route-url (or (impl/fast-get static-i id)
+                            (impl/fast-get trie-i id)
+                            (impl/fast-get linear-i id))]
+          (impl/expand-or-fail! route-url id values))))))
 
 (defn router
   "Create an optimal [[Router]] from a collection of routes.
@@ -209,23 +193,18 @@
   `:route/conflict` set to true. In order to handle conflicts
   implicitely use a [[quarantine-router]] instead."
   [routes]
-  (let [[router conflicts]
-        (try
-          (let [path-conflicting (impl/path-conflicting-routes routes)
-                wilds? (boolean (some impl/wild-route? routes))
-                all-wilds? (every? impl/wild-route? routes)]
-            (when-let [conflicts (impl/unresolved-conflicts path-conflicting)]
-              (exception/fail! :path-conflicts path-conflicting))
-            [(cond
-               path-conflicting quarantine-router
-               (not wilds?) lookup-router
-               all-wilds? trie-router
-               :else mixed-router)
-             path-conflicting])
-          (catch #?(:clj Exception, :cljs js/Error) e
-            (throw (exception/exception e))))]
-    (router
-     (vary-meta routes assoc ::impl/path-conflicting conflicts))))
+  (let [path-conflicting (impl/path-conflicting-routes routes)
+        wilds? (boolean (some impl/wild-route? routes))
+        all-wilds? (every? impl/wild-route? routes)
+        router (cond
+                 path-conflicting quarantine-router
+                 (not wilds?) lookup-router
+                 all-wilds? trie-router
+                 :else mixed-router)]
+    (if-let [conflicts (impl/unresolved-conflicts path-conflicting)]
+      (throw (ex-info "Conflicting paths" conflicts))
+      (router
+       (vary-meta routes assoc ::impl/path-conflicting path-conflicting)))))
 
 (defn add-query-params
   "Append some query params `qparams` to a URI `path`.
