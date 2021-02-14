@@ -315,17 +315,10 @@
 
 (defn insert
   "Returns a trie with routes added to it."
-  ([routes]
-   (insert nil routes))
-  ([node routes]
-   (reduce
-     (fn [acc {:route/keys [urit data]}]
-       (insert acc urit data))
-     node routes))
-  ([node path data]
-   (let [parts (split-path path)
-         params (map-parameters (->> parts (remove string?) (map :value)))]
-     (-insert (or node (-node {})) (split-path path) path params data))))
+  [node path data]
+  (let [parts (split-path path)
+        params (map-parameters (->> parts (remove string?) (map :value)))]
+    (-insert (or node (-node {})) parts path params data)))
 
 (defn compiler
   "Returns a default [[TrieCompiler]]."
