@@ -9,10 +9,6 @@
       [clojure.lang ExceptionInfo])))
 
 (deftest router-test
-  ;; (testing "routers must have a default route"
-  ;;   (are [router]
-  ;;       (is (thrown? ....))))
-
   (testing "routers handling wildcard paths"
     (are [router]
         (testing "wild"
@@ -332,3 +328,15 @@
                   {:route/path "/{a}b/c/d" :name :create :method :post}])]
     (is (= :root (-> (r/match router "/") :data :name)))
     (is (= :root (-> (r/match router2 "/") :data :name)))))
+
+(deftest default-route
+  (let [router (r/router [{:route/path "/{a}/{b}"
+                           :route/id ::route}
+                          {:route/id :default
+                           :example 42}])]
+    (is (thrown? ExceptionInfo
+                 (r/path-for router :default)))
+    (is (= {:data {:route/id :default
+                   :example 42}
+            :params {}}
+           (into {} (r/match router "/not-matching"))))))

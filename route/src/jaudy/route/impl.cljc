@@ -19,7 +19,7 @@
      :template template}))
 
 (defn wild-route? [{:route/keys [path]}]
-  (-> path parse :variables seq boolean))
+  (boolean (some-> path parse :variables seq)))
 
 (defn maybe-map-values
   "Applies a function to every value of a map, updates the value if not nil.
@@ -242,11 +242,13 @@
   [routes]
   (let [compiler (trie/compiler)
         [pl nl] (reduce
-                 (fn [[pl nl] {:route/keys [id path] :as r}]
+                 (fn [[pl nl] {:route/keys [id path] :as r :or {path ""}}]
                    (let [{:keys [variables] :as route} (parse path)]
                      [(conj pl (-> (trie/insert nil path (route-data r))
                                    (trie/compile)))
-                      (if id (assoc nl id (->route-url route)) nl)]))
+                      (if (and id (not-empty path))
+                        (assoc nl id (->route-url route))
+                        nl)]))
                  [[] {}]
                  routes)
         matcher (trie/linear-matcher compiler pl true)]
@@ -256,9 +258,9 @@
 (defn lookup-router
   [routes]
   (let [[pl nl]
-        (reduce (fn [[pl nl] {:route/keys [id path] :as r}]
+        (reduce (fn [[pl nl] {:route/keys [id path] :as r :or {path ""}}]
                   [(assoc pl path (trie/->Match {} (route-data r)))
-                   (if id
+                   (if (and id (not-empty path))
                      (assoc nl id (constantly path))
                      nl)])
                 [{} {}]
@@ -267,18 +269,20 @@
      :match (fast-map pl)}))
 
 (defn trie-router
-  ([routes]
-   (let [compiler (trie/compiler)
-         [pl nl] (reduce
-                  (fn [[pl nl] {:route/keys [id path] :as r}]
-                    (let [route (parse path)]
-                      [(trie/insert pl path (route-data r))
-                       (if id (assoc nl id (->route-url route)) nl)]))
-                  [nil {}]
-                  routes)
-         matcher (trie/compile pl compiler)]
-     {:index (fast-map nl)
-      :match (trie/path-matcher matcher compiler)})))
+  [routes]
+  (let [compiler (trie/compiler)
+        [pl nl] (reduce
+                 (fn [[pl nl] {:route/keys [id path] :as r :or {path ""}}]
+                   [(trie/insert pl path (route-data r))
+                    (if (and id (not-empty path))
+                      (let [path-for (->route-url (parse path))]
+                        (assoc nl id path-for))
+                      nl)])
+                 [nil {}]
+                 routes)
+        matcher (trie/compile pl compiler)]
+    {:index (fast-map nl)
+     :match (trie/path-matcher matcher compiler)}))
 
 (defn expand-or-fail!
   ([route-url id]

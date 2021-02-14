@@ -21,6 +21,12 @@
   Route data form depends on the router implementation and route
   definition.
 
+  This function is total meaning that for every path some data is
+  returned. In other words it never throws an exception.
+
+  The empty string is not a valid path but can be used to retrieve the
+  data associated with the default route.
+
   When the route associated path is templated, the returned params
   provides an assignment of the variables to the values found in
   `path`. Otherwise the params are always an empty map.")
@@ -67,7 +73,8 @@
     ^{:type ::router}
     (reify Router
       (match [_ path]
-        (impl/fast-get match path))
+        (or (impl/fast-get match path)
+            (impl/fast-get match "")))
 
       (path-for [_ id]
         (impl/expand-or-fail! (impl/fast-get index id) id))
@@ -86,7 +93,8 @@
     (reify
       Router
       (match [_ url]
-        (match url))
+        (or (match url)
+            (match "")))                ; :default
 
       (path-for [_ id]
         (impl/expand-or-fail! (impl/fast-get index id) id))
@@ -108,7 +116,8 @@
     (reify Router
       (match [_ url]
         (or (impl/fast-get static-matcher url)
-            (trie-matcher url)))
+            (trie-matcher url)
+            (impl/fast-get static-matcher ""))) ; :default
 
       (path-for [_ id]
         (let [route-url (or (impl/fast-get static-idx id)
@@ -143,7 +152,8 @@
     (reify
       Router
       (match [_ url]
-        (match url))
+        (or (match url)
+            (match "")))                ; :default
 
       (path-for [_ id]
         (impl/expand-or-fail! (impl/fast-get index id) id))
@@ -169,7 +179,8 @@
       (match [_ url]
         (or (impl/fast-get static-m url)
             (trie-m url)
-            (linear-m url)))
+            (linear-m url)
+            (impl/fast-get static-m ""))) ; :default
 
       (path-for [_ id]
         (let [route-url (or (impl/fast-get static-i id)
@@ -193,17 +204,18 @@
   `:route/conflict` set to true. In order to handle conflicts
   implicitely use a [[quarantine-router]] instead."
   [routes]
-  (let [path-conflicting (impl/path-conflicting-routes routes)
-        wilds? (boolean (some impl/wild-route? routes))
-        all-wilds? (every? impl/wild-route? routes)
-        router (cond
-                 path-conflicting quarantine-router
-                 (not wilds?) lookup-router
-                 all-wilds? trie-router
-                 :else mixed-router)]
+  (let [regular-routes (filter (comp not-empty :route/path) routes)
+        path-conflicting (impl/path-conflicting-routes regular-routes)
+        wilds? (boolean (some impl/wild-route? regular-routes))
+        all-wilds? (every? impl/wild-route? regular-routes)
+        router* (cond
+                  path-conflicting quarantine-router
+                  (not wilds?) lookup-router
+                  all-wilds? trie-router
+                  :else mixed-router)]
     (if-let [conflicts (impl/unresolved-conflicts path-conflicting)]
       (throw (ex-info "Conflicting paths" conflicts))
-      (router
+      (router*
        (vary-meta routes assoc ::impl/path-conflicting path-conflicting)))))
 
 (defn add-query-params
