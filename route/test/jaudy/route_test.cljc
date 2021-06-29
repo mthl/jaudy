@@ -16,7 +16,9 @@
           (testing "simple"
             (let [r (router [{:route/path "/api/ipa/{size}"
                               :route/id ::beer}])]
-              (is (= nil (r/match r "/api")))
+              (is (= {:data {:route/id :default}
+                      :params {}}
+                     (into {} (r/match r "/api"))))
               (is (= {:data {:route/id ::beer
                              :route/path "/api/ipa/{size}"}
                       :params {:size "large"}}
@@ -41,8 +43,10 @@
           (testing "decode %-encoded path params"
             (let [r (router [{:route/path "/one-param-path/{param1}"
                               :route/id ::one}
-                             {:route/path "/two-param-path/{param1}/{param2}"}
-                             {:route/path "/catchall{/remaining-path}"}])
+                             {:route/path "/two-param-path/{param1}/{param2}"
+                              :route/id ::two}
+                             {:route/path "/catchall{/remaining-path}"
+                              :route/id ::catch-all}])
                   decoded-params #(:params (r/match r %))
                   decoded-param1 #(:param1 (decoded-params %))
                   decoded-remaining-path #(:remaining-path (decoded-params %))]
@@ -121,7 +125,7 @@
                        (by-path "/olipa/kerran/avaruus/vaan/ei/toista/kertaa")))
                 (is (= [::html {:name "10"}] (by-path "/files/file-10.html")))
                 (is (= [::loru {:eskon "viitan", :saum "aa"}] (by-path "/viitan/aa/pium\u2215paum")))
-                (is (= [nil nil] (by-path "/ei/osu/pium/paum")))
+                (is (= [:default {}] (by-path "/ei/osu/pium/paum")))
                 (is (= [::emoji {:🌈 "brackets"}] (by-path "/brackets🤔/🎈")))
                 (is (= [::bracket {}] (by-path "/extra-end}s-are/ok")))))
 
@@ -136,8 +140,10 @@
               (is (thrown-with-msg?
                    ExceptionInfo
                    #"multiple terminators"
-                   (r/router [{:route/path "/{kukka}.json"}
-                              {:route/path "/{kukka}-json"}]))))))
+                   (r/router [{:route/path "/{kukka}.json"
+                               :route/id ::.}
+                              {:route/path "/{kukka}-json"
+                               :route/id ::-}]))))))
 
           (testing "empty path segments"
             (let [r (router [{:route/path "/items"
@@ -148,11 +154,11 @@
                               :route/id ::deep}])
                   matches #(-> r (r/match %) :data :route/id)]
               (is (= ::list (matches "/items")))
-              (is (= nil (matches "/items/")))
+              (is (= :default (matches "/items/")))
               (is (= ::item (matches "/items/1")))
               (is (= ::deep (matches "/items/1/2")))
-              (is (= nil (matches "/items//2")))
-              (is (= nil (matches ""))))))
+              (is (= :default (matches "/items//2")))
+              (is (= :default (matches ""))))))
 
       r/linear-router
       r/trie-router
@@ -163,7 +169,9 @@
     (are [router]
         (let [r (router [{:route/path "/api/ipa/large"
                           :route/id ::beer}])]
-          (is (= nil (r/match r "/api")))
+          (is (= {:data {:route/id :default}
+                  :params {}}
+                 (into {} (r/match r "/api"))))
           (is (= {:data {:route/id ::beer
                          :route/path "/api/ipa/large"}
                   :params {}}
@@ -187,7 +195,8 @@
            ExceptionInfo
            #"can't create a lookup router with wildcard routes"
            (r/lookup-router
-            [{:route/path"/api/{version}/ping"}])))))
+            [{:route/path "/api/{version}/ping"
+              :route/id ::ping}])))))
 
   (testing "ring sample"
     (let [pong (constantly "ok")
@@ -195,19 +204,24 @@
                    :mw [:api]
                    :route/id :kikka}
                   {:route/path "/api/user/{id}/{sub-id}"
+                   :route/id ::user-id
                    :mw [:api]
                    :parameters {:id "String", :sub-id "String"}}
                   {:route/path "/api/pong"
+                   :route/id ::pong
                    :mw [:api]
                    :handler pong}
                   {:route/path "/api/admin/user"
+                   :route/id ::user
                    :mw [:api :admin]
                    :roles #{:user}}
                   {:route/path "/api/admin/db"
+                   :route/id ::db
                    :mw [:api :admin :db]
                    :roles #{:admin}}]
           router (r/router routes)]
       (is (= {:data {:route/path "/api/user/{id}/{sub-id}"
+                     :route/id ::user-id
                      :mw [:api]
                      :parameters {:id "String", :sub-id "String"}}
               :params {:id "1", :sub-id "2"}}
@@ -266,27 +280,28 @@
              (r/router
               [{:route/path "/a"}
                {:route/path "/a"}]))))
+
       (testing "can be configured to ignore with route data"
         (are [paths]
             (let [router (r/router paths)]
               (is (not (nil? router))))
-          [{:route/path "/a" :route/conflict true}
-           {:route/path "/a" :route/conflict true}]
+          [{:route/path "/a" :route/id ::a0 :route/conflict true}
+           {:route/path "/a" :route/id ::a1 :route/conflict true}]
 
-          [{:route/path "/a" :route/conflict true}
-           {:route/path "/{b}" :route/conflict true}
-           {:route/path "/c" :route/conflict true}
-           {:route/path "{/d}" :route/conflict true}]
+          [{:route/path "/a" :route/id ::a :route/conflict true}
+           {:route/path "/{b}" :route/id ::b :route/conflict true}
+           {:route/path "/c" :route/id ::c :route/conflict true}
+           {:route/path "{/d}" :route/id ::d :route/conflict true}]
 
-          [{:route/path "/:a/{b}" :route/conflict true}
-           {:route/path "/:a/{c}" :route/conflict true}
-           {:route/path "/:a/{d}/{e}" :route/conflict true}
-           {:route/path "/:a/{d}/{f}" :route/conflict true}]
+          [{:route/path "/:a/{b}" :route/id ::ab :route/conflict true}
+           {:route/path "/:a/{c}" :route/id ::ac :route/conflict true}
+           {:route/path "/:a/{d}/{e}" :route/id ::ade :route/conflict true}
+           {:route/path "/:a/{d}/{f}" :route/id ::adf :route/conflict true}]
 
-          [{:route/path "/:a/{b}" :route/conflict true}
-           {:route/path "/:a/{c}" :route/conflict true}
-           {:route/path "/:a/{d}/{e}" :route/conflict true}
-           {:route/path "/:a/{d}/{f}" :route/conflict true}])
+          [{:route/path "/:a/{b}" :route/id ::ab :route/conflict true}
+           {:route/path "/:a/{c}" :route/id ::ac :route/conflict true}
+           {:route/path "/:a/{d}/{e}" :route/id ::de :route/conflict true}
+           {:route/path "/:a/{d}/{f}" :route/id ::adf :route/conflict true}])
 
         (testing "unmarked path conflicts throw"
           (are [paths]
@@ -294,10 +309,10 @@
                    ExceptionInfo
                    #"Conflicting paths"
                    (r/router paths)))
-            [{:route/path "/a"}
-             {:route/path "/a" :route/conflict true}]
-            [{:route/path "/a" :route/conflict true}
-             {:route/path "/a"}])))))
+            [{:route/path "/a" :route/id ::a0}
+             {:route/path "/a" :route/id ::a1 :route/conflict true}]
+            [{:route/path "/a" :route/id ::a0 :route/conflict true}
+             {:route/path "/a" :route/id ::a1 }])))))
 
   (testing "name conflicts"
     (testing "router with conflicting routes always throws"
@@ -321,22 +336,46 @@
 
 (deftest routing-order-test-229
   (let [router (r/quarantine-router
-                [{:route/path "/" :name :root}
-                 {:route/path "/" :name :create :method :post}])
+                [{:route/path "/" :route/id :root}
+                 {:route/path "/" :route/id :create :method :post}])
         router2 (r/quarantine-router
-                 [{:route/path "{/a}" :name :root}
-                  {:route/path "/{a}b/c/d" :name :create :method :post}])]
-    (is (= :root (-> (r/match router "/") :data :name)))
-    (is (= :root (-> (r/match router2 "/") :data :name)))))
+                 [{:route/path "{/a}" :route/id :root}
+                  {:route/path "/{a}b/c/d" :route/id :create :method :post}])]
+    (is (= :root (-> (r/match router "/") :data :route/id)))
+    (is (= :root (-> (r/match router2 "/") :data :route/id)))))
 
 (deftest default-route
-  (let [router (r/router [{:route/path "/{a}/{b}"
-                           :route/id ::route}
-                          {:route/id :default
-                           :example 42}])]
-    (is (thrown? ExceptionInfo
-                 (r/path-for router :default)))
-    (is (= {:data {:route/id :default
-                   :example 42}
-            :params {}}
-           (into {} (r/match router "/not-matching"))))))
+  (testing "implicit default"
+    (let [router (r/router [{:route/path "/{a}/{b}"
+                             :route/id ::route}])]
+      (is (thrown? ExceptionInfo
+                   (r/path-for router :default)))
+      (is (= {:data {:route/id :default}
+              :params {}}
+             (into {} (r/match router "/not-matching"))))))
+
+  (testing "explicit default"
+    (let [router (r/router [{:route/path "/{a}/{b}"
+                             :route/id ::route}
+                            {:route/id :default
+                             :example 42}])]
+      (is (thrown? ExceptionInfo
+                   (r/path-for router :default)))
+      (is (= {:data {:route/id :default
+                     :example 42}
+              :params {}}
+             (into {} (r/match router "/not-matching")))))))
+
+(deftest route-data-test
+  (testing "route/data value override the data returned when matching a route"
+    (let [router (r/router [{:route/path "/{a}/{b}"
+                             :route/id ::route
+                             :route/data {:example 14}}
+                            {:route/id :default
+                             :route/data {:example 42}}])]
+      (is (= {:data {:example 42}
+              :params {}}
+             (into {} (r/match router "/not-matching"))))
+      (is (= {:data {:example 14}
+              :params {:a "matching" :b "path"}}
+             (into {} (r/match router "/matching/path")))))))

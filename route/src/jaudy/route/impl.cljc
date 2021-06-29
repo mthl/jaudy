@@ -74,9 +74,24 @@
            (into {})))
 
 (defn no-id-conflicts
+  "Check that every route in `routes` contains a unique :route/id and
+  that the default route has no path."
   [routes]
+  (when-some [no-ids (not-empty (remove :route/id routes))]
+    (throw (ex-info "Missing route identifiers" {:routes (set no-ids)})))
+
   (when-let [name-conflicting (name-conflicting-routes routes)]
-    (throw (ex-info "Duplicated route identifier" name-conflicting))))
+    (throw (ex-info "Duplicated route identifier" name-conflicting)))
+
+  (when-first [{path :route/path} (filter (comp #{:default} :route/id) routes)]
+    (when (seq path)
+      (throw (ex-info "default route path must be empty" {:route/path path})))))
+
+(defn add-default
+  [routes]
+  (cond-> routes
+    (not-any? (comp #{:default} :route/id) routes)
+    (conj {:route/id :default})))
 
 (defn path-for [route values]
   (if (-> route :variables not-empty)

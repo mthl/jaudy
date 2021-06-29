@@ -69,7 +69,7 @@
     (throw 
      (ex-info "can't create a lookup router with wildcard routes"
               {:wilds wilds :routes routes})))
-  (let [{:keys [index match]} (impl/lookup-router routes)]
+  (let [{:keys [index match]} (-> routes impl/add-default impl/lookup-router)]
     ^{:type ::router}
     (reify Router
       (match [_ path]
@@ -88,7 +88,7 @@
   (impl/no-id-conflicts routes)
   (when-let [conflicts (impl/path-conflicting-routes routes)]
     (throw (ex-info "Conflicting paths" conflicts)))
-  (let [{:keys [index match]} (impl/trie-router routes)]
+  (let [{:keys [index match]} (-> routes impl/add-default impl/trie-router)]
     ^{:type ::router}
     (reify
       Router
@@ -109,7 +109,8 @@
   (impl/no-id-conflicts routes)
   (when-let [conflicts (impl/path-conflicting-routes routes)]
     (throw (ex-info "Conflicting paths" conflicts)))
-  (let [{wilds true, statics false} (group-by impl/wild-route? routes)
+  (let [routes* (impl/add-default routes)
+        {wilds true, statics false} (group-by impl/wild-route? routes*)
         {trie-idx :index trie-matcher :match} (impl/trie-router wilds)
         {static-idx :index static-matcher :match} (impl/lookup-router statics)]
     ^{:type ::router}
@@ -147,7 +148,7 @@
   easily lead to unexpected results."
   [routes]
   (impl/no-id-conflicts routes)
-  (let [{:keys [index match]} (impl/linear-router routes)]
+  (let [{:keys [index match]} (-> routes impl/add-default impl/linear-router)]
     ^{:type ::router}
     (reify
       Router
@@ -167,9 +168,10 @@
   routes."
   [routes]
   (impl/no-id-conflicts routes)
-  (let [conflicting-paths (impl/conflicting-paths (impl/path-conflicting-routes routes))
+  (let [routes* (impl/add-default routes)
+        conflicting-paths (impl/conflicting-paths (impl/path-conflicting-routes routes*))
         conflicting? #(contains? conflicting-paths (first %))
-        {conflicting true, non-conflicting false} (group-by conflicting? routes)
+        {conflicting true, non-conflicting false} (group-by conflicting? routes*)
         {linear-i :index linear-m :match} (impl/linear-router conflicting)
         {wilds true, statics false} (group-by impl/wild-route? non-conflicting)
         {static-i :index static-m :match} (impl/lookup-router statics)
