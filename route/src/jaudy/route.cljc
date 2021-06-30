@@ -237,7 +237,7 @@
   `:route/conflict` set to true. In order to handle conflicts
   implicitely use a [[quarantine-router]] instead."
   [routes]
-  (let [regular-routes (filter (comp not-empty :route/path) routes)
+  (let [regular-routes (filter (comp seq :route/path) routes)
         path-conflicting (impl/path-conflicting-routes regular-routes)
         wilds? (boolean (some impl/wild-route? regular-routes))
         all-wilds? (every? impl/wild-route? regular-routes)
