@@ -110,8 +110,9 @@
       (path-for [_ id]
         (impl/expand-or-fail! (impl/fast-get index id) id))
 
-      (path-for [_ id params]
-        (impl/expand-or-fail! (impl/fast-get index id) id params)))))
+      (path-for [_ id _params]
+        ;; “lookup” router does not handle path params.
+        (impl/expand-or-fail! (impl/fast-get index id) id)))))
 
 (defn trie-router
   "Creates a special prefix-tree router from resolved routes."
