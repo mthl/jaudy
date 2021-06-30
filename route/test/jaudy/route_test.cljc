@@ -1,5 +1,6 @@
 (ns jaudy.route-test
   (:require
+   [clojure.spec.test.alpha :as stest]
    [clojure.test :refer [deftest testing is are]]
    [jaudy.route :as r #?@(:cljs [:refer [Router]])]
    [jaudy.route.impl :as impl])
@@ -7,6 +8,12 @@
      (:import
       [jaudy.route Router]
       [clojure.lang ExceptionInfo])))
+
+(deftest fspecs-test
+  (is (= {:total 1, :check-passed 1}
+         (stest/summarize-results
+          (stest/check `r/router)))
+      "function implementations should satisfy their specs"))
 
 (deftest router-test
   (testing "routers handling wildcard paths"

@@ -1,5 +1,8 @@
 (ns jaudy.route
   (:require
+   [clojure.spec.alpha :as s]
+   [clojure.spec.gen.alpha :as gen]
+   [clojure.string :as str]
    [jaudy.route.impl :as impl]
    [jaudy.route.trie :as trie]))
 
@@ -50,6 +53,34 @@
   "Check if an object `x` satifies the [[Router]] protocol"
   [x]
   (satisfies? Router x))
+
+(s/def :route/id keyword?)
+(s/def :route/path string?)
+(s/def :route/data any?)
+(s/def :route/conflict boolean?)
+
+(s/def ::route
+  (s/and (s/keys :req [:route/id]
+                 :opt [:route/path
+                       :route/data
+                       :route/conflict])
+         #(let [{:route/keys [id path]} %]
+            (if (= :default id)
+              (empty? path)
+              (seq path)))))
+
+(s/fdef valid?
+  :args (s/cat :routes (s/coll-of ::route))
+  :ret boolean?)
+
+(defn valid?
+  "Check if a collection of routes is valid"
+  [routes]
+  (and (-> routes impl/path-conflicting-routes impl/unresolved-conflicts nil?)
+       (-> routes impl/name-conflicting-routes nil?)))
+
+(s/def ::routes
+  (s/and (s/coll-of ::route) valid?))
 
 ;;; Routers
 
@@ -197,7 +228,7 @@
           (impl/expand-or-fail! route-url id values))))))
 
 (defn router
-  "Create an optimal [[Router]] from a collection of routes.
+  "Create an optimal [[Router]] from a collection of valid routes.
 
   The actual router implementation used is selected based on the
   characteristics of the routes.
@@ -219,6 +250,35 @@
       (throw (ex-info "Conflicting paths" conflicts))
       (router*
        (vary-meta routes assoc ::impl/path-conflicting path-conflicting)))))
+
+(s/def ::router
+  (s/spec router? :gen #(gen/fmap router (s/gen ::routes))))
+
+(s/fdef router
+  :args (s/cat :routes ::routes)
+  :ret ::router)
+
+(s/def ::data any?)
+(s/def ::params (s/map-of keyword? string?))
+
+(s/def ::match
+  (s/keys :req-un [::data ::params]))
+
+(s/fdef match
+  :args (s/cat :this ::router
+               :path string?)
+  :ret ::match)
+
+(s/fdef path-for
+  :args (s/cat :this ::router
+               :id keyword?
+               :path-params (s/? ::params))
+  :ret string?
+  :fn (s/and #(every? (fn [param]
+                        (str/includes? (:ret %) param))
+                      (-> % :args :path-params vals))
+             #(= (-> % :args :path-params)
+                 (-> % :args :this (match (:ret %)) :params seq))))
 
 (defn add-query-params
   "Append some query params `qparams` to a URI `path`.
