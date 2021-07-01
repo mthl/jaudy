@@ -10,9 +10,10 @@
       [clojure.lang ExceptionInfo])))
 
 (deftest fspecs-test
-  (is (= {:total 1, :check-passed 1}
+  (is (= {:total 2, :check-passed 2}
          (stest/summarize-results
-          (stest/check `r/router)))
+          (stest/check `[r/router
+                         r/match])))
       "function implementations should satisfy their specs"))
 
 (deftest router-test
