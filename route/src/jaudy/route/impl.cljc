@@ -93,6 +93,49 @@
     (not-any? (comp #{:default} :route/id) routes)
     (conj {:route/id :default})))
 
+(defn routes-index
+  [routes]
+  (reduce (fn [acc route]
+            (assoc acc (:route/id route) route))
+          {}
+          routes))
+
+(defmacro router [routes & opts+specs]
+  (let [dict (gensym)
+        routes* (gensym)]
+    (if (:ns &env)
+      ;; cljs
+      `(let [~routes* ~routes
+             ~dict (routes-index ~routes*)]
+         (reify jaudy.route/Router
+           ~@opts+specs
+
+           ~'ISeqable
+           (~'-seq [~'_] (seq ~routes*))
+
+           ~'ILookup
+           (~'-lookup [~'_ ~'id]
+             (get ~dict ~'id))
+
+           (~'-lookup [~'_ ~'id ~'default]
+             (get ~dict ~'id ~'default))))
+
+      ;; clj
+      `(let [~routes* ~routes
+             ~dict (routes-index ~routes*)]
+         (reify jaudy.route.Router
+           ~@opts+specs
+
+           clojure.lang.Seqable
+           (seq [~'_] (seq ~routes*))
+
+           clojure.lang.ILookup
+           (valAt [~'_ ~'id]
+             (get ~dict ~'id))
+
+           (valAt [~'_ ~'id ~'default]
+             (get ~dict ~'id ~'default)))))))
+
 (defn path-for [route values]
   (if (-> route :variables not-empty)
     (when-let [parts (reduce

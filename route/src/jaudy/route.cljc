@@ -100,9 +100,10 @@
     (throw 
      (ex-info "can't create a lookup router with wildcard routes"
               {:wilds wilds :routes routes})))
-  (let [{:keys [index match]} (-> routes impl/add-default impl/lookup-router)]
+  (let [routes* (impl/add-default routes)
+        {:keys [index match]} (impl/lookup-router routes*)]
     ^{:type ::router}
-    (reify Router
+    (impl/router routes*
       (match [_ path]
         (or (impl/fast-get match path)
             (impl/fast-get match "")))
@@ -120,10 +121,10 @@
   (impl/no-id-conflicts routes)
   (when-let [conflicts (impl/path-conflicting-routes routes)]
     (throw (ex-info "Conflicting paths" conflicts)))
-  (let [{:keys [index match]} (-> routes impl/add-default impl/trie-router)]
+  (let [routes* (impl/add-default routes)
+        {:keys [index match]} (impl/trie-router routes*)]
     ^{:type ::router}
-    (reify
-      Router
+    (impl/router routes*
       (match [_ url]
         (or (match url)
             (match "")))                ; :default
@@ -146,7 +147,7 @@
         {trie-idx :index trie-matcher :match} (impl/trie-router wilds)
         {static-idx :index static-matcher :match} (impl/lookup-router statics)]
     ^{:type ::router}
-    (reify Router
+    (impl/router routes*
       (match [_ url]
         (or (impl/fast-get static-matcher url)
             (trie-matcher url)
@@ -180,10 +181,10 @@
   easily lead to unexpected results."
   [routes]
   (impl/no-id-conflicts routes)
-  (let [{:keys [index match]} (-> routes impl/add-default impl/linear-router)]
+  (let [routes* (impl/add-default routes)
+        {:keys [index match]} (impl/linear-router routes*)]
     ^{:type ::router}
-    (reify
-      Router
+    (impl/router routes*
       (match [_ url]
         (or (match url)
             (match "")))                ; :default
@@ -209,7 +210,7 @@
         {static-i :index static-m :match} (impl/lookup-router statics)
         {trie-i :index trie-m :match} (impl/trie-router wilds)]
     ^{:type ::router}
-    (reify Router
+    (impl/router routes*
       (match [_ url]
         (or (impl/fast-get static-m url)
             (trie-m url)
@@ -253,7 +254,11 @@
        (vary-meta routes assoc ::impl/path-conflicting path-conflicting)))))
 
 (s/def ::router
-  (s/spec router? :gen #(gen/fmap router (s/gen ::routes))))
+  (s/with-gen (s/and router?
+                     seqable?
+                     #?(:clj #(instance? clojure.lang.ILookup %)
+                        :cljs #(satisfies? ILookup %)))
+    #(gen/fmap router (s/gen ::routes))))
 
 (s/fdef router
   :args (s/cat :routes ::routes)
