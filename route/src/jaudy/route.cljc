@@ -102,7 +102,6 @@
               {:wilds wilds :routes routes})))
   (let [routes* (impl/add-default routes)
         {:keys [index match]} (impl/lookup-router routes*)]
-    ^{:type ::router}
     (impl/router routes*
       (match [_ path]
         (or (impl/fast-get match path)
@@ -123,7 +122,6 @@
     (throw (ex-info "Conflicting paths" conflicts)))
   (let [routes* (impl/add-default routes)
         {:keys [index match]} (impl/trie-router routes*)]
-    ^{:type ::router}
     (impl/router routes*
       (match [_ url]
         (or (match url)
@@ -146,7 +144,6 @@
         {wilds true, statics false} (group-by impl/wild-route? routes*)
         {trie-idx :index trie-matcher :match} (impl/trie-router wilds)
         {static-idx :index static-matcher :match} (impl/lookup-router statics)]
-    ^{:type ::router}
     (impl/router routes*
       (match [_ url]
         (or (impl/fast-get static-matcher url)
@@ -183,7 +180,6 @@
   (impl/no-id-conflicts routes)
   (let [routes* (impl/add-default routes)
         {:keys [index match]} (impl/linear-router routes*)]
-    ^{:type ::router}
     (impl/router routes*
       (match [_ url]
         (or (match url)
@@ -209,7 +205,6 @@
         {wilds true, statics false} (group-by impl/wild-route? non-conflicting)
         {static-i :index static-m :match} (impl/lookup-router statics)
         {trie-i :index trie-m :match} (impl/trie-router wilds)]
-    ^{:type ::router}
     (impl/router routes*
       (match [_ url]
         (or (impl/fast-get static-m url)

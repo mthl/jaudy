@@ -107,6 +107,7 @@
       ;; cljs
       `(let [~routes* ~routes
              ~dict (routes-index ~routes*)]
+         ^{:type :jaudy.route/router}
          (reify jaudy.route/Router
            ~@opts+specs
 
@@ -123,6 +124,7 @@
       ;; clj
       `(let [~routes* ~routes
              ~dict (routes-index ~routes*)]
+         ^{:type :jaudy.route/router}
          (reify jaudy.route.Router
            ~@opts+specs
 
