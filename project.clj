@@ -15,4 +15,15 @@
          :dependencies [[org.clojure/clojure]
                         [org.clojure/clojurescript]
                         [org.clojure/test.check]]}}
+  :plugins [[lein-cljsbuild "1.1.8"]
+            [lein-doo "0.1.10"]]
+  :aliases {"test-cljs" ["doo" "node" "test" "once"]}
+  :cljsbuild {:builds [{:id "test"
+                        :source-paths ["route/src"
+                                       "route/test"
+                                       "test"]
+                        :compiler {:output-to "target/js/test.js"
+                                   :output-dir "target/js"
+                                   :main jaudy.runner
+                                   :target :nodejs}}]}
   :repl-options {:init-ns jaudy.core})
