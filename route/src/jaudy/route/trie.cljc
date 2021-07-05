@@ -79,17 +79,14 @@
                        (long (inc to')))))
             (recur ss from (inc to))))))))
 
-(defn join-path [xs]
-  (reduce
-   (fn [s x]
-     (cond
-       (string? x) (str s x)
-       (instance? Wild x) (str s "{" (-> x :value str (subs 1)) "}")
-       (instance? CatchAll x) (str (->> s count dec (subs s 0))
-                                   "{/"
-                                   (-> x :value str (subs 1))
-                                   "*}")))
-   "" xs))
+(defn- join-path [xs]
+  (reduce (fn [s x]
+            (cond
+              (string? x) (str s x)
+              (instance? Wild x) (str s "{" (-> x :value str) "}")
+              (instance? CatchAll x) (str s "{/" (-> x :value str) "*}")))
+          ""
+          xs))
 
 ;;
 ;; Conflict Resolution
