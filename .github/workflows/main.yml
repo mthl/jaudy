@@ -1,10 +1,6 @@
 name: Clojure CI
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push]
 
 jobs:
   build:
@@ -12,8 +8,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: DeLaGuardo/setup-clojure@3.5
+      with:
+        cli: 1.10.3.1029
+
     - uses: actions/checkout@v2
+
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.gitlibs
+          ~/.m2
+        key: ${{ runner.os }}-${{ hashFiles('**/deps.edn') }}
+
     - name: Install dependencies
-      run: lein deps
-    - name: Run tests
-      run: lein do test, test-cljs
+      run: clojure -X:deps prep
+    - name: Compile
+      run: clojure -T:build compile
+    - name: Clojure Test
+      run: clojure -X:test
+    - name: ClojureScript Test
+      run: clojure -T:build cljs-test

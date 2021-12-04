@@ -1,0 +1,12 @@
+{:deps {fr.reuz/jaudy.route {:local/root "modules/route"}}
+ :aliases
+ {:build {:deps {io.github.clojure/tools.build {:git/tag "v0.6.8"
+                                                :git/sha "d79ae84"}
+                 slipset/deps-deploy {:mvn/version "0.2.0"}}
+          :ns-default build}
+  :test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.0"
+                                                            :git/sha "b3fd0d2"}
+                      org.clojure/clojurescript {:mvn/version "1.10.597"}
+                      org.clojure/test.check {:mvn/version "1.1.0"}}
+         :exec-fn cognitect.test-runner.api/test}}}
